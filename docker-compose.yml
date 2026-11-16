@@ -1,0 +1,50 @@
+services:
+  codebuddy:
+    build:
+      context: .
+      args:
+        CODEBUDDY_VERSION: "${CODEBUDDY_VERSION:-2.184.0}"
+    image: "codebuddy-gateway:${CODEBUDDY_VERSION:-2.184.0}"
+    container_name: codebuddy-gateway
+    restart: unless-stopped
+    init: true
+
+    # 默认只绑回环地址，由反代/VPN 暴露到公网；直连公网请自行承担风险。
+    ports:
+      - "${BIND_IP:-127.0.0.1}:${PORT:-7890}:${PORT:-7890}"
+
+    env_file:
+      - .env
+
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      PORT: "${PORT:-7890}"
+      HOST: "0.0.0.0"
+      AGENT: "${AGENT:-cli}"
+      PERMISSION_MODE: "${PERMISSION_MODE:-default}"
+      BASE_PATH: "${BASE_PATH:-}"
+      CODEBUDDY_GATEWAY_AUTH: "${CODEBUDDY_GATEWAY_AUTH:-password}"
+      CODEBUDDY_GATEWAY_PASSWORD: "${CODEBUDDY_GATEWAY_PASSWORD:-}"
+      CODEBUDDY_CODE_CORS_ORIGINS: "${CODEBUDDY_CODE_CORS_ORIGINS:-}"
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      DISABLE_AUTOUPDATER: "1"
+
+    volumes:
+      # 登录态、settings.json、会话、日志、Skills 都在这个卷里
+      - codebuddy-config:/home/cbc/.codebuddy
+      # Agent 默认工作目录；按需改成你自己的项目根目录
+      - ${WORKSPACE_DIR:-./workspace}:/workspace
+      # 只有在确实需要 git 凭据时才挂载，且必须只读：
+      # - ./secrets/ssh:/home/cbc/.ssh:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1:${PORT:-7890}/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  codebuddy-config:
+    name: codebuddy-config
