@@ -42,10 +42,21 @@ RUN --mount=type=cache,target=/root/.npm \
  && codebuddy --version \
  && npm cache clean --force
 
-RUN groupadd -g 1000 cbc \
- && useradd -m -d /home/cbc -s /bin/bash -u 1000 -g cbc cbc \
- && mkdir -p /home/cbc/.codebuddy /workspace \
- && chown -R cbc:cbc /home/cbc /workspace
+# node 官方镜像已占用 uid/gid 1000（用户/组名均为 node），直接新建会报
+# "groupadd: GID '1000' already exists"。这里复用并重命名它，保持 uid/gid=1000。
+RUN set -eux; \
+  if ! getent group cbc >/dev/null; then \
+    if getent group node >/dev/null; then groupmod -n cbc node; else groupadd --gid 1000 cbc; fi; \
+  fi; \
+  if ! id -u cbc >/dev/null 2>&1; then \
+    if id -u node >/dev/null 2>&1; then \
+      usermod --login cbc --home /home/cbc --move-home --shell /bin/bash node; \
+    else \
+      useradd --create-home --home-dir /home/cbc --shell /bin/bash --uid 1000 --gid cbc cbc; \
+    fi; \
+  fi; \
+  mkdir -p /home/cbc/.codebuddy /workspace; \
+  chown -R cbc:cbc /home/cbc /workspace
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
