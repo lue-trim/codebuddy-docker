@@ -37,20 +37,25 @@ RUN apt-get update \
  && git config --system --add safe.directory '*' \
  && rm -rf /var/lib/apt/lists/*
 
+# 构建阶段用 /root 作为 HOME，避免 npm / codebuddy --version 提前在
+# /home/cbc 里生成配置（尤其 settings.json），把密码初始化留给 entrypoint。
 RUN --mount=type=cache,target=/root/.npm \
-    npm install -g --no-audit --no-fund "@tencent-ai/codebuddy-code@${CODEBUDDY_VERSION}" \
- && codebuddy --version \
+    HOME=/root npm install -g --no-audit --no-fund "@tencent-ai/codebuddy-code@${CODEBUDDY_VERSION}" \
+ && HOME=/root codebuddy --version \
  && npm cache clean --force
 
 # node 官方镜像已占用 uid/gid 1000（用户/组名均为 node），直接新建会报
 # "groupadd: GID '1000' already exists"。这里复用并重命名它，保持 uid/gid=1000。
+# 不加 --move-home：构建阶段已把 HOME 临时设回 /root，但 /home/cbc 仍可能
+# 因旧镜像层或基础镜像而存在；usermod -m 遇到已存在目录会报 exit 12。
+# 直接改 passwd 里的 home 路径，目录内容由下面的 mkdir/chown 准备即可。
 RUN set -eux; \
   if ! getent group cbc >/dev/null; then \
     if getent group node >/dev/null; then groupmod -n cbc node; else groupadd --gid 1000 cbc; fi; \
   fi; \
   if ! id -u cbc >/dev/null 2>&1; then \
     if id -u node >/dev/null 2>&1; then \
-      usermod --login cbc --home /home/cbc --move-home --shell /bin/bash node; \
+      usermod --login cbc --home /home/cbc --shell /bin/bash node; \
     else \
       useradd --create-home --home-dir /home/cbc --shell /bin/bash --uid 1000 --gid cbc cbc; \
     fi; \

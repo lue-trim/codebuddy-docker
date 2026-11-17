@@ -187,6 +187,7 @@ docker run --rm \
 | 子路径访问白屏 | 确认 `BASE_PATH` 以 `/` 开头；反代需透传该前缀；以启动日志中的 Web UI 地址为准 |
 | 容器反复重启 | 先看 `docker compose logs`；未登录一般不会阻止 serve 启动，但登录后才能正常跑任务 |
 | 构建时报 `groupadd: GID '1000' already exists` | 官方 node 镜像已占用 uid/gid 1000；当前 Dockerfile 已改为复用并重命名其 `node` 用户/组，重新 build 即可 |
+| 构建时报 `usermod: directory /home/cbc exists` | 已修复：`usermod` 去掉 `--move-home`，且构建阶段临时用 `HOME=/root`，避免 npm 提前生成 `/home/cbc` 和 `settings.json` |
 
 ## 9. 官方参考
 
