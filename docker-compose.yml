@@ -32,7 +32,7 @@ services:
 
     volumes:
       # 登录态、settings.json、会话、日志、Skills 都在这个卷里
-      - codebuddy-config:/home/cbc/.codebuddy
+      - ${CODEBUDDY_DIR:-./.codebuddy}:/home/cbc/.codebuddy
       # Agent 默认工作目录；按需改成你自己的项目根目录
       - ${WORKSPACE_DIR:-./workspace}:/workspace
       # 只有在确实需要 git 凭据时才挂载，且必须只读：
